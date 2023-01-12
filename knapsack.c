@@ -42,31 +42,73 @@ int knapsack_bottom_up_parallel(int capacity, int weights[], int values[], int n
 	return table[num_items][capacity];
 }
 
+// int knapsack_bottom_up_parallel_blocks(int capacity, int weights[], int values[], int num_items)
+// {
+// 	int i, w, block;
+// 	int table[num_items+1][capacity+1];
+
+// 	int num_blocks = omp_get_max_threads();
+// 	printf("%d\n", num_blocks);
+
+// 	int num_threads_done_for_row = 0;
+// 	int done = 0;
+
+// 	#pragma omp parallel private(block, i, w) shared(num_threads_done_for_row, done) num_threads(num_blocks)
+// 	{
+// 		#pragma omp for
+// 		for (block = 0; block < num_blocks; block++) {
+// 			printf("xd\n");
+// 			for (i = 0; i <= num_items; i++) {
+
+
+// 				for (w = block * capacity/num_blocks; w < block+1 * capacity/num_blocks, w <= capacity; w++) {
+// 					if (i == 0 || w == 0)
+// 						table[i][w] = 0;
+// 					else if (weights[i-1] <= w)
+// 						table[i][w] = max(table[i-1][w], table[i-1][w-weights[i-1]] + values[i-1]);
+// 					else
+// 						table[i][w] = table[i-1][w];
+// 				}
+
+// 				#pragma omp atomic
+// 				num_threads_done_for_row++;
+
+// 				int num_done_local = -1;
+// 				do
+// 				{
+// 					#pragma omp atomic read
+// 					num_done_local = num_threads_done_for_row;
+// 				}
+// 				while (num_done_local != num_blocks && !done);
+// 			}
+// 		}
+// 	}
+
+// 	return table[num_items][capacity];
+// }
+
 int knapsack_bottom_up_parallel_blocks(int capacity, int weights[], int values[], int num_items)
 {
-	int i, w, block;
+	int i, w;
 	int table[num_items+1][capacity+1];
 
 	int num_blocks = omp_get_max_threads();
 	printf("%d\n", num_blocks);
 
-	#pragma omp parallel private(block, i, w)
+	#pragma omp parallel private(i, w) num_threads(num_blocks)
 	{
-		#pragma omp for
-		for (block = 0; block < num_blocks; block++) {
-			printf("xd\n");
-			for (i = 0; i <= num_items; i++) {
-				for (w = block * capacity/num_blocks; w < block+1 * capacity/num_blocks, w <= capacity; w++) {
-					if (i == 0 || w == 0)
-						table[i][w] = 0;
-					else if (weights[i-1] <= w)
-						table[i][w] = max(table[i-1][w], table[i-1][w-weights[i-1]] + values[i-1]);
-					else
-						table[i][w] = table[i-1][w];
-				}
-
-				#pragma omp barrier
+		for (i = 0; i <= num_items; i++) {
+			int block = omp_get_thread_num();
+			for (w = block * capacity/num_blocks; w < block+1 * capacity/num_blocks, w <= capacity; w++) {
+				if (i == 0 || w == 0)
+					table[i][w] = 0;
+				else if (weights[i-1] <= w)
+					table[i][w] = max(table[i-1][w], table[i-1][w-weights[i-1]] + values[i-1]);
+				else
+					table[i][w] = table[i-1][w];
 			}
+
+			#pragma omp barrier
 		}
 	}
 
